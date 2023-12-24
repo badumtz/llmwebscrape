@@ -24,21 +24,25 @@ async def fetch_url(url, user_agent):
             return await response.text()
 
 
-async def scrape_city_restaurants(city_link, schema_restaurant):
-    user_agent = next(user_agent_cycle)
-    loader = AsyncChromiumLoader([city_link])
-    html = await loader.ascrape_playwright(city_link)
-    document = Document(page_content=html, metadata={"source": city_link})
+async def scrape_city_restaurants(city_link, schema_restaurant, user_agent):
+    try:
+        loader = AsyncChromiumLoader([city_link])
+        headers = {'User-Agent': user_agent}
+        html = await loader.ascrape_playwright(city_link, headers=headers)
+        document = Document(page_content=html, metadata={"source": city_link})
 
-    bs_transformer = BeautifulSoupTransformer()
-    docs_transformed = bs_transformer.transform_documents([document], tags_to_extract=["a"])
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=10000, chunk_overlap=0
-    )
-    splits = splitter.split_documents([docs_transformed[0]])
-    extracted_content = [extract(split.page_content, schema=schema_restaurant) for split in splits]
+        bs_transformer = BeautifulSoupTransformer()
+        docs_transformed = bs_transformer.transform_documents([document], tags_to_extract=["a"])
+        splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=10000, chunk_overlap=0
+        )
+        splits = splitter.split_documents([docs_transformed[0]])
+        extracted_content = [extract(split.page_content, schema=schema_restaurant) for split in splits]
 
-    return extracted_content
+        return extracted_content
+    except Exception as e:
+        print(f"Error scraping {city_link}: {e}")
+        return None
 
 
 def extract(content: str, schema: dict):
@@ -115,7 +119,18 @@ if __name__ == '__main__':
         "Mozilla/5.0 (Android 11; Mobile; rv:90.0) Gecko/90.0 Firefox/90.0",
     ]
     user_agent_cycle = cycle(user_agents)
-    city_link_to_test = 'https://tazz.ro/medias/restaurante'
-    result = asyncio.run(scrape_city_restaurants(city_link_to_test, schema_restaurant))
+    city_links_to_test = ['https://tazz.ro/medias/restaurante', 'https://tazz.ro/zalau/restaurante']
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tasks = [
+        scrape_city_restaurants(city_link, schema_restaurant, next(user_agent_cycle))
+        for city_link in city_links_to_test
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    for city_link, result in zip(city_links_to_test, results):
+        print(f"Results for {city_link}:")
+        pprint.pprint(result)
 
 

@@ -12,6 +12,8 @@ beautifulsoup4 = "*"
 tiktoken = "*"
 asyncio = "*"
 typing = "*"
+requests = "*"
+aiohttp = "*"
 
 [dev-packages]
 

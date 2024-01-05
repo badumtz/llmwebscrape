@@ -99,9 +99,6 @@ async def scrape_restaurant_menus_base_function(restaurant_link, user_agent):
         h5_elements = tree.xpath('//h5[@class="title-container"]/text()')
         span_elements = tree.xpath('//span[@class="price-container zprice"]/text()')
 
-        print(f"Number of h5 elements for {restaurant_link}: {len(h5_elements)}")
-        print(f"Number of span elements for {restaurant_link}: {len(span_elements)}")
-
         elements = ' '.join(h5_elements + span_elements)
 
         documents = [Document(page_content=elements, metadata={"source": restaurant_link})]
@@ -110,7 +107,6 @@ async def scrape_restaurant_menus_base_function(restaurant_link, user_agent):
             chunk_size=10000, chunk_overlap=0
         )
         splits = splitter.split_documents(documents)
-        print(f"Number of splits for {restaurant_link}: {len(splits)}")
 
         start_extraction = time.time()
         extracted_menus = await asyncio.gather(*[asyncio.to_thread(extract, split.page_content, schema=schema_menu, llm=llm) for split in splits])

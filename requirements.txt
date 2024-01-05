@@ -4,3 +4,4 @@ python-dotenv~=1.0.0
 langchain~=0.0.352
 typing~=3.7.4.3
 aiohttp~=3.9.1
+lxml~=4.9.4

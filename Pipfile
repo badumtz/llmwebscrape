@@ -16,6 +16,7 @@ requests = "*"
 aiohttp = "*"
 langfuse = "*"
 lxml = "*"
+bs4 = "*"
 
 [dev-packages]
 

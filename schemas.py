@@ -1,15 +1,9 @@
 schema_menu = {
     'properties': {
-        'food_name': {
-            'xpath': '//h5/text()',
-            'type': 'string'
-        },
-        'food_price': {
-            'xpath': '//span/text()',
-            'type': 'string'
-        },
+        "food_name": {"type": "string"},
+        "food_price": {"type": "string"},
     },
-    "required": ["food_name", "food_price"],
+    "required": ["food_name", "food_price_effective"],
 }
 schema_restaurant = {
     "properties": {

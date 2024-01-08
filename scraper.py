@@ -30,22 +30,20 @@ async def glovo_cities_main_page(platform):
             chunk_size=10000, chunk_overlap=0
         )
         splits = splitter.split_documents(documents)
-        start_extraction = time.time()
         extracted_data = await asyncio.gather(
             *[asyncio.to_thread(extract, split.page_content, schema=schema_city, llm=llm) for split in splits])
-        end_extraction = time.time()
-        print(f"Time taken for LLM extraction: {end_extraction - start_extraction} seconds")
         extracted_cities = [city for sublist in extracted_data for city in sublist if
                             '/ro/ro' in city['city_link'] and 'la-domiciliu' not in city['city_link']]
         for city in extracted_cities:
             city['city_link'] = 'https://glovoapp.com' + city['city_link'] + 'restaurante_1/'
         return extracted_cities
+
     except Exception as e:
         print(f"Error scraping {url}: {e}")
         return None
 
 
-async def fetch_city_subpages_from_main_pages(city, user_agents):
+async def fetch_city_subpages_from_main_pages_glovo(city, user_agents):
     try:
         city_url = city['city_link']
         headers = {'User-Agent': user_agents}
@@ -53,6 +51,8 @@ async def fetch_city_subpages_from_main_pages(city, user_agents):
         city_tree = html.fromstring(city_html_content)
         subpage_links = city_tree.xpath('//a[contains(@href, "restaurante_1/?page=")]/@href')
         city['subpage_links'] = [city['city_link']] + list(set(['https://glovoapp.com' + link for link in subpage_links]))
+        return city['subpage_links']
+
     except Exception as e:
         print(f"Error fetching subpages for {city['city_link']}: {e}")
 
@@ -74,24 +74,21 @@ async def scrape_cities(platform):
                 chunk_size=10000, chunk_overlap=0
             )
             splits = splitter.split_documents(documents)
-            start_extraction = time.time()
             extracted_data = await asyncio.gather(*[asyncio.to_thread(extract, split.page_content, schema=schema_city, llm=llm) for split in splits])
-            end_extraction = time.time()
-            print(f"Time taken for LLM extraction: {end_extraction - start_extraction} seconds")
             extracted_cities = [city for sublist in extracted_data for city in sublist if '/oras' in city['city_link']]
             for city in extracted_cities:
                 city['city_link'] = city['city_link'].replace('oras', 'restaurante')
             return extracted_cities
-
         elif platform == 'glovo':
             unformatted_cities = await glovo_cities_main_page(platform)
             tasks = [
-                fetch_city_subpages_from_main_pages(city, random.choice(user_agents))
+                fetch_city_subpages_from_main_pages_glovo(city, random.choice(user_agents))
                 for city in unformatted_cities
             ]
             await asyncio.gather(*tasks)
             extracted_cities = unformatted_cities
             return extracted_cities
+
     except Exception as e:
         print(f"Error scraping {url}: {e}")
         return None
@@ -103,22 +100,16 @@ async def scrape_restaurants_base_function(url, user_agents, platform):
         html_content = await fetch_url(url, headers)
         tree = html.fromstring(html_content)
         a_elements = tree.xpath('//body//a')
-
         elements = ' '.join([etree.tostring(el, encoding='unicode') for el in a_elements])
-
         documents = [Document(page_content=elements, metadata={"source": url})]
-
         splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
             chunk_size=10000, chunk_overlap=0
         )
         splits = splitter.split_documents(documents)
-
-        start_extraction = time.time()
         extracted_data = await asyncio.gather(
             *[asyncio.to_thread(extract, split.page_content, schema=schema_restaurant, llm=llm) for split in
               splits])
-        end_extraction = time.time()
-        print(f"Time taken for LLM extraction: {end_extraction - start_extraction} seconds")
+
         if platform == 'tazz':
             extracted_restaurants = filter_full_restaurant_links(extracted_data, 'tazz')
             return extracted_restaurants
